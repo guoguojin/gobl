@@ -1,0 +1,14 @@
+server-config:
+  host: "some-host"
+  port: 1234
+user-config:
+  first-name: "Jane"
+  last-name: "Doe"
+  age: 42
+bad-server-config:
+  server: "some-host"
+  port: 1234
+bad-user-config:
+  first_name: "Jane"
+  last_name: "Doe"
+  age: 42

@@ -1,0 +1,19 @@
+image: golang:1.21-bullseye
+stages:
+  - lint
+  - test
+
+before_script:
+  - go env -w GOPRIVATE=gitlab.com/gobl
+  - go env -w GO111MODULE=on
+  - git config --global url."https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com".insteadOf https://gitlab.com
+
+run-tests:
+  stage: test
+  script:
+    - go test -v ./...
+
+run-tests-with-race:
+  stage: test
+  script:
+    - go test -v -race ./...

@@ -1,0 +1,21 @@
+version: "3.7"
+
+networks:
+  default:
+    external: true
+    name: ${DEV_NETWORK_NAME}
+
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - 127.0.0.1:5432:5432
+    volumes:
+      - ./_initdb/:/docker-entrypoint-initdb.d/
+    networks:
+      - default
+  redis:
+    image: redis:latest

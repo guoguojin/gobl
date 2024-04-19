@@ -1,0 +1,41 @@
+version: "3.7"
+
+networks:
+  default:
+    external: true
+    name: ${DEV_NETWORK_NAME}
+
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - 127.0.0.1:5432:5432
+    volumes:
+      - ./_initdb/:/docker-entrypoint-initdb.d/
+    networks:
+      - default
+  redis:
+    image: redis:latest
+  service:
+    build:
+      context: ../../
+      dockerfile: build/docker/service/Dockerfile
+      args:
+        ALPINE_VERSION: latest
+        SERVICE_PATH: /opt/service/server
+        SERVICE_DIR: /opt/service
+        MAINTAINER: Tan Quach <t@nqua.ch>
+        GITLAB_USER: ${GITLAB_USER}
+        GITLAB_TOKEN: ${GITLAB_TOKEN}
+    image: {{.GoModule}}:latest
+    env_file:
+      - ./env_files/service.env
+    ports:
+      - 2021:2021
+    depends_on:
+      - postgres
+      - redis
+    restart: on-failure

@@ -1,0 +1,24 @@
+metrics:
+  enabled: true
+  port: 9999
+  path: "/metrics"
+  http-server-read-header-timeout: 60s
+  http-server-timeout: 60s
+bad-metrics:
+  some-key-1: some-value-1
+  some-key-2: some-value-2
+  some-key-3: some-value-3
+  http-server-read-header-timeout: 60s
+  http-server-timeout: 60s
+bad-port-metrics:
+  port: "not-a-number"
+  path: "/metrics"
+  enabled: true
+  http-server-read-header-timeout: 60s
+  http-server-timeout: 60s
+bad-port-range-metrics:
+  port: 123456
+  path: "/metrics"
+  enabled: false
+  http-server-read-header-timeout: 60s
+  http-server-timeout: 60s

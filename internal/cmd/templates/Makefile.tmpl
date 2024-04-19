@@ -1,0 +1,173 @@
+ifneq (,$(wildcard ./.env))
+	include .env
+	export
+endif
+
+.DEFAULT_GOAL := dev-stack
+
+HAS_PRECOMMIT := $(shell command -v pre-commit > /dev/null 2>&1 && echo "yes" || echo "no")
+
+DOCKER_REGISTRY ?= {{.Registry}}
+REPO ?= {{.ProjectRepo}}
+PROJECT ?= {{.ProjectName}}
+
+SERVICE_DIR ?= /opt/service
+SERVICE_PATH ?= ${SERVICE_DIR}/${PROJECT}
+
+USER_ID ?= $(shell id -u)
+USER_NAME ?= $(shell id -un)
+MAINTAINER ?= "$(shell git config user.name) <$(shell git config user.email)>"
+
+TAG ?= $(shell git describe --tags --always --dirty | sed 's/-g[a-z0-9]\{7\}//')
+CONTAINER_NAME ?= ${DOCKER_REGISTRY}/${REPO}/${PROJECT}
+
+ifeq ($(OS),Windows_NT)
+	MSYS_NO_PATHCONV ?= 1
+endif
+
+# Development environment tasks
+
+# Start the development stack
+dev-stack:
+	docker-compose -p ${PROJECT} -f deployments/docker/docker-compose-dev.yaml up -d
+
+# Tear down the development stack
+dev-stack-down:
+	docker-compose -p ${PROJECT} -f deployments/docker/docker-compose-dev.yaml down
+
+# Build and start the test stack
+test-stack:
+	docker-compose -p ${PROJECT} -f deployments/docker/docker-compose-test.yaml up -d --build
+
+# Tear down the test stack
+test-stack-down:
+	docker-compose -p ${PROJECT} -f deployments/docker/docker-compose-test.yaml down
+
+# Build the service docker image
+.PHONY: build
+build:
+	cp config/configuration.yaml build/docker/service/config
+	docker build --build-arg SERVICE_PATH=${SERVICE_PATH} \
+		--build-arg SERVICE_DIR=${SERVICE_DIR} \
+		--build-arg MAINTAINER=${MAINTAINER} \
+		--build-arg GITLAB_USER=${GITLAB_USER} \
+		--build-arg GITLAB_TOKEN=${GITLAB_TOKEN} \
+		-t "${CONTAINER_NAME}:latest" \
+		-t "${CONTAINER_NAME}:${TAG}" \
+		-f build/docker/service/Dockerfile .
+
+# Push the latest docker image to the registry
+push-latest:
+	docker push ${CONTAINER_NAME}:latest
+
+# Push the tagged image to the registry
+push-tag:
+	docker push ${CONTAINER_NAME}:${TAG}
+
+# Push both the tag and latest images to the registry
+push: push-tag push-latest
+
+# Clean the docker images
+clean:
+	docker rmi -f ${CONTAINER_NAME}:latest ${CONTAINER_NAME}:${TAG}
+
+# Go project tasks
+
+# Tidy up the go modules
+tidy:
+	@go mod tidy
+
+# Run tests with race flag
+test:
+	@CGO_ENABLED=1 go test -race ./...
+
+# Run test with race flag and generate coverage profile
+test-cover:
+	@CGO_ENABLED=1 go test -race -cover -coverprofile=coverage.out ./...
+
+# Run test with race flag and generate coverage profile and display the HTML output to default browser
+cover-html: test-cover
+	@go tool cover -html coverage.out
+
+# Run go linting tools
+lint:
+	@go vet ./...
+	@golangci-lint run -v
+
+# Start the server
+run:
+	@go run ./cmd/server
+
+# Run code generation
+generate:
+	@go generate ./...
+
+# Pre-commit tasks, make sure you have pre-commit installed before running this
+
+# Install the commit message linting and pre-commit hooks
+install-pre-commit:
+	@echo "Checking for pre-commit command"
+	@if [ $(HAS_PRECOMMIT) = "yes" ]; then \
+		pre-commit install -t commit-msg -t pre-commit; \
+	else \
+		echo "pre-commit command has not been found, please install pre-commit first https://pre-commit.com/"; \
+	fi
+
+# Run all configured pre-commit checks on all files
+check:
+	@CGO_ENABLED=1 pre-commit run --all-files
+
+{{/* Example targets
+
+# Protocol Buffer tasks
+
+# Install protobuf dependencies
+install-dependencies:
+	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway@v2.18.1
+	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v2.18.1
+	@go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.31.0
+	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
+
+# Clean up buf generated code and documentation
+buf-clean:
+	@find pkg/protos -name '*.pb.go' | xargs -r rm
+	@rm -rf docs/api
+
+# Run buf linting
+buf-lint:
+	@buf lint
+
+# Update buf module versions
+buf-mod-update:
+	@buf mod update
+
+# Check for protocol buffer definition breaks
+buf-breaks:
+	@buf breaking --against ./.git#branch=main,subdir=./
+
+# Push buf definitions to the registry
+buf-push:
+	@buf push
+
+# Build protocol buffers
+buf-build:
+	@buf build
+
+# Clean check and generate protocol buffer code
+.PHONY: protos
+protos: install-dependencies buf-clean buf-lint buf-mod-update
+	@buf generate
+  jj
+gql-gen:
+	@go run github.com/99designs/gqlgen generate
+
+executable:
+	@go build -o ${PROJECT} ./cmd/server
+
+sql-init:
+	@./initdb.sh
+
+run-server:
+	@go run ./cmd/server
+
+*/}}

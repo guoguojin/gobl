@@ -1,0 +1,47 @@
+ARG ALPINE_VERSION=latest
+
+FROM golang:1.21-alpine as build
+
+ARG GITLAB_USER
+ARG GITLAB_TOKEN
+
+ENV CGO_ENABLE=0
+ENV GO111MODULE=on
+ENV GOPRIVATE=gitlab.com/gobl
+
+RUN apk update && apk add git
+RUN git config --global url."https://${GITLAB_USER}:${GITLAB_TOKEN}@gitlab.com".insteadOf "https://gitlab.com"
+
+WORKDIR /build
+
+ADD . .
+
+RUN go build -o server ./cmd/server
+
+## Stage 2
+FROM alpine:${ALPINE_VERSION}
+
+ARG SERVICE_PATH
+ARG MAINTAINER
+ARG SERVICE_DIR
+
+ENV SERVICE_PATH=${SERVICE_PATH}
+ENV SERVICE_DIR=${SERVICE_DIR}
+ENV MAINTAINER=${MAINTAINER}
+
+LABEL maintainer=${MAINTAINER}
+
+RUN apk update && apk add tzdata
+
+RUN mkdir -p $(dirname ${SERVICE_PATH})/config
+
+COPY --from=build /build/server ${SERVICE_PATH}
+
+ADD build/docker/service/config/configuration.yaml ${SERVICE_DIR}/config/configuration.yaml
+COPY --chmod=0755 build/docker/service/scripts/entrypoint.sh ${SERVICE_DIR}/entrypoint.sh
+
+WORKDIR ${SERVICE_DIR}
+
+ENTRYPOINT [ "./entrypoint.sh" ]
+
+CMD [ "sh", "-c", "./server" ]

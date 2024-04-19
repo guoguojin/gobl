@@ -1,0 +1,85 @@
+package main
+
+import (
+	"context"
+	"fmt"
+
+	"gitlab.com/gobl/gobl/pkg/application"
+	"gitlab.com/gobl/gobl/pkg/bootstrap"
+	"gitlab.com/gobl/gobl/pkg/cmd"
+	"gitlab.com/gobl/gobl/pkg/property"
+	"gitlab.com/gobl/gobl/pkg/service"
+)
+
+const (
+	prefix = "GOBL" // change this for your own purposes
+	usage  = "{{.ProjectName}}"
+	short  = "A short description for your application"
+	long   = "A longer description for the help message when run on the CLI"
+)
+
+func envVars() map[string]string {
+	return map[string]string{
+		// Add your Viper config, environment variable mappings here
+		// Example:
+		// "db.host": "DB_HOST",
+		// "db.port": "DB_PORT"
+	}
+}
+
+type AppState struct {
+	service.State
+	// add data you need to share between services
+}
+
+func main() {
+	// bind your env vars first in case they need to be referenced by the
+	// initialisation functions
+	for k, v := range envVars() {
+		application.SetEnvVarBinding(k, v)
+	}
+
+	application.BindEnvVars(prefix)
+
+	app := bootstrap.New().
+		AddInitFunc(
+		// You can list your initialisation functions here
+		// You can do things like initialising connections to your data source
+		// set up routes and handlers for a HTTP service
+		// set up background event handlers etc.
+		).AddCleanupFunc(
+	// And your cleanup functions here
+	// Such as closing those database connections
+	// Gracefully stopping running services
+	// Cancelling the contexts for long running processes etc.
+	)
+
+	if err := app.SetProperties(property.Properties{
+		property.KeyUsage:     property.StringProperty(property.KeyUsage, usage),
+		property.KeyShortDesc: property.StringProperty(property.KeyShortDesc, short),
+		property.KeyLongDesc:  property.StringProperty(property.KeyLongDesc, long),
+	}); err != nil {
+		panic(fmt.Errorf("failed to set application properties: %w", err))
+	}
+
+	st := AppState{}
+
+	// This will launch your application as a server
+	// Use Ctrl-C to gracefully stop it
+	// If you don't want a long running service, but just to
+	// execute a command, you can specify the run function to
+	// execute using
+	//
+	// app.WithRunFunc(func(ctx context.Context, state service.State) error {
+	//     fmt.Println("Hello, World!!!)
+	// })
+	//
+	// Alternatively, replace the root command with your own:
+	//
+	// application.RootCmd = &cobra.Command{
+	//     Run: func(cmd *cobra.Command, args []string) {
+	//          fmt.Println("Hello, World!!!")
+	//     }
+	// }
+	cmd.Execute(context.Background(), app, st)
+}

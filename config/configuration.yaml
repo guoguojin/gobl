@@ -1,0 +1,10 @@
+version: 0.2.0
+service:
+    name: gobl
+log:
+    filepath: ./logs/gobl.log
+    level: DEBUG
+    max-size: 100
+    max-backups: 5
+    max-age: 30
+    compress: false

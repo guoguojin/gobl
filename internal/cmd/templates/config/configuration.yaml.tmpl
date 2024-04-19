@@ -1,0 +1,10 @@
+version: 0.1.0
+service:
+  name: {{.ProjectName}}
+log:
+  filepath: {{.ProjectName}}.log
+  level: INFO
+  max-size: 100
+  max-backup: 5
+  max-age: 30
+  compress: false

@@ -1,0 +1,10 @@
+version: 0.1.0
+service:
+    name: {{.GoProjectAddress}}
+log:
+    filepath: {{.GoblLogPath}}
+    level: INFO
+    max-size: 100
+    max-backups: 5
+    max-age: 30
+    compress: false
